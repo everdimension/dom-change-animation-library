@@ -1,0 +1,16 @@
+{
+  "name": "dom-change-animation-library",
+  "version": "0.0.1",
+  "description": "Animate removal and addition of DOM elements",
+  "main": "lib/index.js",
+  "scripts": {
+    "start": "cd examples && npm start",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "everdimension@gmail.com",
+  "license": "MIT",
+  "devDependencies": {},
+  "dependencies": {
+    "animejs": "^2.2.0"
+  }
+}
