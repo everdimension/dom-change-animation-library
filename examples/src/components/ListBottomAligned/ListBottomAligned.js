@@ -3,7 +3,7 @@ import { AnimateList } from '../../../../src';
 
 const propTypes = {};
 
-class List extends React.Component {
+class ListBottomAligned extends React.Component {
   constructor() {
     super();
     const values = {
@@ -15,15 +15,11 @@ class List extends React.Component {
     this.state = {
       values,
       order: Object.keys(values),
-      colors: {
-        ringo: '#2ecc71',
-        john: '#8e44ad',
-        paul: '#e74c3c',
-        george: '#16a085',
-      },
     };
     this.handleRemove = this.handleRemove.bind(this);
+    this.handleRemoveLast = this.handleRemoveLast.bind(this);
     this.handleAdd = this.handleAdd.bind(this);
+    this.handleAddLast = this.handleAddLast.bind(this);
     this.handleShuffle = this.handleShuffle.bind(this);
     this.handleReverse = this.handleReverse.bind(this);
     this.handlePause = this.handlePause.bind(this);
@@ -32,7 +28,7 @@ class List extends React.Component {
 
   componentDidMount() {
     this.animateList = new AnimateList(this.listNode);
-    Object.assign(window, { animateList: this.animateList });
+    Object.assign(window, { animateListBottomAligned: this.animateList });
   }
 
   handleAdd() {
@@ -45,9 +41,25 @@ class List extends React.Component {
     }
   }
 
+  handleAddLast() {
+    const { order, values } = this.state;
+    const newItem = Object.keys(values).find(name => !order.includes(name));
+    if (newItem) {
+      this.setState({
+        order: [...order, newItem],
+      });
+    }
+  }
+
   handleRemove() {
     this.setState({
       order: this.state.order.slice(1),
+    });
+  }
+
+  handleRemoveLast() {
+    this.setState({
+      order: this.state.order.slice(0, this.state.order.length - 1),
     });
   }
 
@@ -76,12 +88,19 @@ class List extends React.Component {
   render() {
     const { order, values } = this.state;
     return (
-      <div>
+      <div
+        style={{
+          height: 600,
+          position: 'relative',
+        }}
+      >
         <div style={{ marginBottom: 50 }}>
           <button onClick={this.handleRemove}>remove first</button>
+          <button onClick={this.handleRemoveLast}>remove last</button>
           <button onClick={this.handleShuffle}>shuffle</button>
           <button onClick={this.handleReverse}>reverse</button>
           <button onClick={this.handleAdd}>add to beginning</button>
+          <button onClick={this.handleAddLast}>add to end</button>
           <button onClick={this.handlePause}>pause</button>
           <button onClick={this.handlePlay}>playAll</button>
         </div>
@@ -89,19 +108,21 @@ class List extends React.Component {
           ref={n => {
             this.listNode = n;
           }}
-          style={{ width: 300 }}
+          style={{ width: 300, position: 'absolute', bottom: 0, right: 0 }}
         >
           {order.map(key => (
             <div
               key={key}
               style={{
                 padding: 20,
-                height: 40,
-                backgroundColor: this.state.colors[key],
+                backgroundColor: '#444',
                 color: 'white',
                 marginBottom: '0.5em',
+                opacity: 0.8,
               }}
-            />
+            >
+              {values[key].name}
+            </div>
           ))}
         </div>
       </div>
@@ -109,6 +130,6 @@ class List extends React.Component {
   }
 }
 
-List.propTypes = propTypes;
+ListBottomAligned.propTypes = propTypes;
 
-export { List };
+export { ListBottomAligned };
