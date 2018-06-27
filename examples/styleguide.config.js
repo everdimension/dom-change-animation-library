@@ -1,4 +1,5 @@
 module.exports = {
+  components: 'src/components/**/[A-Z]*.js',
   webpackConfig: {
     module: {
       rules: [
@@ -6,6 +7,7 @@ module.exports = {
         {
           test: /\.jsx?$/,
           exclude: /node_modules/,
+          include: [/src/, '../src'],
           loader: 'babel-loader',
         },
       ],

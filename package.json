@@ -3,14 +3,24 @@
   "version": "0.0.1",
   "description": "Animate removal and addition of DOM elements",
   "main": "lib/index.js",
+  "module": "lib/index.es.js",
   "scripts": {
     "start": "cd examples && npm start",
+    "build": "rollup -c",
+    "prepare": "npm run build",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "everdimension@gmail.com",
   "license": "MIT",
-  "devDependencies": {},
-  "dependencies": {
+  "devDependencies": {
+    "animejs": "^2.2.0",
+    "babel-core": "^6.26.3",
+    "babel-plugin-transform-object-rest-spread": "^6.26.0",
+    "rollup": "^0.61.2",
+    "rollup-plugin-babel": "^3.0.5"
+  },
+  "peerDependencies": {
     "animejs": "^2.2.0"
-  }
+  },
+  "dependencies": {}
 }
