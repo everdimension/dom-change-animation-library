@@ -35,6 +35,13 @@ class List extends React.Component {
     Object.assign(window, { animateList: this.animateList });
   }
 
+  getSnapshotBeforeUpdate() {
+    this.animateList.takeSnapshotBeforeUpdate();
+    return null;
+  }
+
+  componentDidUpdate() {}
+
   handleAdd() {
     const { order, values } = this.state;
     const newItem = Object.keys(values).find(name => !order.includes(name));

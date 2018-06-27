@@ -27,9 +27,20 @@ class ListBottomAligned extends React.Component {
   }
 
   componentDidMount() {
-    this.animateList = new AnimateList(this.listNode);
+    this.animateList = new AnimateList(this.listNode, {
+      animationOptions: {
+        enter: { duration: 4000 },
+      },
+    });
     Object.assign(window, { animateListBottomAligned: this.animateList });
   }
+
+  getSnapshotBeforeUpdate() {
+    this.animateList.takeSnapshotBeforeUpdate();
+    return null;
+  }
+
+  componentDidUpdate() {}
 
   handleAdd() {
     const { order, values } = this.state;
