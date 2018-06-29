@@ -1,5 +1,5 @@
 import anime from 'animejs';
-import { includes, flatten } from './dom-helpers';
+import { AnimationsStore } from './AnimationsStore';
 
 const emptyTransforms = {
   translateX: 0,
@@ -23,11 +23,16 @@ function getTransformsForNode(node, animations = []) {
   }, {});
 }
 
-function getChildrenPositions(target, animations = []) {
+function getChildrenPositions(target, { animations, withoutTransforms }) {
   const positions = [];
   for (let node of target.children) {
+    // const savedTransform = node.style.transform;
+    // if (withoutTransforms) {
+    //   node.style.transform = '';
+    // }
     const clientRect = node.getBoundingClientRect();
-    const transforms = getTransformsForNode(node, animations);
+    // const transforms = getTransformsForNode(node, animations);
+    const transforms = emptyTransforms;
     positions.push({
       rect: {
         x: clientRect.x - (transforms.translateX || 0),
@@ -41,12 +46,17 @@ function getChildrenPositions(target, animations = []) {
       },
       node,
     });
+    // return transform
+    // console.log({ savedTransform });
+    // if (savedTransform && withoutTransforms) {
+    //   node.style.transform = savedTransform;
+    // }
   }
   return positions;
 }
 
-function collectPositionsData(target, animations) {
-  const children = getChildrenPositions(target, animations);
+function collectPositionsData(target, options) {
+  const children = getChildrenPositions(target, options);
   const containerRect = target.getBoundingClientRect();
   const container = {
     x: containerRect.x,
@@ -60,7 +70,7 @@ function collectPositionsData(target, animations) {
   };
 }
 
-function getInversedOffsets(prevPositions, newPositionsData, animations) {
+function getInversedOffsets(prevPositions, newPositionsData) {
   return newPositionsData.map(position => {
     const prevPos = prevPositions.find(p => p.node === position.node);
     if (!prevPos) {
@@ -83,6 +93,12 @@ function getContainerRect(node) {
   return { top, left };
 }
 
+function resetTransforms(target) {
+  for (let child of target.children) {
+    child.style.transform = '';
+  }
+}
+
 function updatePositionsWithAnimation(positions, animations) {
   return positions.map(position => {
     // it is okay to mutate `position` here
@@ -98,69 +114,6 @@ function updatePositionsWithAnimation(positions, animations) {
     position.rect.bottom += transforms.translateY || 0;
     return position;
   });
-}
-
-class AnimationsStore {
-  constructor() {
-    this.animations = {
-      moveAnimations: [],
-      enterAnimations: [],
-      leaveAnimations: [],
-    };
-  }
-
-  addAnimation(animationName, animation) {
-    if (!this.animations[animationName] || animation.completed) {
-      return;
-    }
-    this.animations[animationName].push(animation);
-
-    animation.finished.then(() => {
-      this.animations[animationName] = this.animations[animationName].filter(
-        a => a !== animation,
-      );
-    });
-  }
-
-  removeAllAnimations() {
-    this.animations.moveAnimations = [];
-    this.animations.enterAnimations = [];
-    // this.animations.leaveAnimations = [];
-  }
-
-  getActiveAnimations() {
-    return flatten(
-      flatten(Object.values(this.animations))
-        .filter(a => !a.completed)
-        .map(a => a.animations),
-    );
-  }
-
-  hasActiveAnimations() {
-    return Object.values(this.animations).some(
-      animations => animations.length && animations.some(a => !a.completed),
-    );
-  }
-
-  pause() {
-    [this.animations.moveAnimations, this.animations.enterAnimations].forEach(
-      animations => animations.forEach(a => a.pause()),
-    );
-  }
-
-  playAll() {
-    Object.values(this.animations).forEach(animations =>
-      animations.forEach(a => a.play()),
-    );
-  }
-
-  seek(value) {
-    [
-      this.animations.moveAnimations,
-      this.animations.enterAnimations,
-      this.animations.leaveAnimations,
-    ].forEach(animations => animations.forEach(a => a.seek(value)));
-  }
 }
 
 const defaultAnimationOptions = {
@@ -184,7 +137,7 @@ export class AnimateList {
     },
   ) {
     this.target = target;
-    this.positionsData = collectPositionsData(target);
+    this.positionsData = collectPositionsData(target, { withoutTransforms: false });
     this.currentContainerPosition = getContainerRect(target);
     this.animation = null;
     this.animations = new AnimationsStore();
@@ -203,7 +156,8 @@ export class AnimateList {
   }
 
   takeSnapshotBeforeUpdate() {
-    this.positionsData = collectPositionsData(this.target);
+    this.positionsData = collectPositionsData(this.target, { withoutTransforms: false });
+    resetTransforms(this.target);
     this.didTakeSnapshotBeforeUpdate = true;
   }
 
@@ -213,10 +167,15 @@ export class AnimateList {
     const activeAnimations = shouldAccountForAnimation
       ? this.animations.getActiveAnimations()
       : undefined;
-    const newPositionsData = collectPositionsData(
-      record.target,
-      activeAnimations,
-    );
+
+    if (shouldAccountForAnimation) {
+      this.animations.pause();
+    }
+
+    const newPositionsData = collectPositionsData(record.target, {
+      animations: activeAnimations,
+      withoutTransforms: true,
+    });
 
     const childListMutations = mutations.filter(m => m.type === 'childList');
 
@@ -241,11 +200,14 @@ export class AnimateList {
       p => !addedNodes.includes(p.node),
     );
 
-    /** To calculate containerDiff, we need to add removedNodes.back */
+    removedNodes.forEach(node => {
+      node.style.transition = 'none';
+    });
+    positionsToMove.forEach(p => {
+      p.node.style.transition = 'none';
+    });
 
-    if (shouldAccountForAnimation) {
-      this.animations.pause();
-    }
+    /** To calculate containerDiff, we need to add removedNodes.back */
 
     if (shouldAccountForAnimation && !this.didTakeSnapshotBeforeUpdate) {
       this.positionsData.children = updatePositionsWithAnimation(
@@ -256,7 +218,6 @@ export class AnimateList {
     const inversedOffsets = getInversedOffsets(
       this.positionsData.children,
       positionsToMove,
-      activeAnimations,
     );
 
     this.animations.removeAllAnimations();
@@ -265,11 +226,17 @@ export class AnimateList {
       this.positionsData,
       newPositionsData,
     );
-    const enterAnimation = this.animateEntrance(addedNodes);
-    const leaveAnimation = this.drawRemovedNodes(removedNodes);
     this.animations.addAnimation('moveAnimations', moveAnimation);
-    this.animations.addAnimation('enterAnimations', enterAnimation);
-    this.animations.addAnimation('leaveAnimations', leaveAnimation);
+    console.log(addedNodes.length);
+    if (addedNodes.length) {
+      const enterAnimation = this.animateEntrance(addedNodes);
+      this.animations.addAnimation('enterAnimations', enterAnimation);
+    }
+
+    if (removedNodes.length) {
+      const leaveAnimation = this.drawRemovedNodes(removedNodes);
+      this.animations.addAnimation('leaveAnimations', leaveAnimation);
+    }
 
     this.positionsData = newPositionsData;
     this.didTakeSnapshotBeforeUpdate = false;
@@ -291,11 +258,26 @@ export class AnimateList {
       const { translateX, translateY } = offset.styles;
       const x = translateX - containerDiff.x;
       const y = translateY - containerDiff.y;
+      offset.node.style.transition = 'none';
       offset.node.style.transform = `translateX(${x}px) translateY(${y}px)`;
     });
 
     const targets = nonZeroOffsets.map(p => p.node);
     /** animate elements to where they should be */
+    // requestAnimationFrame(() => {
+    //   targets.forEach(node => {
+    //     node.style.transition = `opacity ${
+    //       this.animationOptions.move.duration / 1000
+    //     }s, transform ${this.animationOptions.move.duration / 1000}s`;
+    //     node.style.transform = `translateX(0) translateY(0)`;
+    //     node.style.opacity = 1;
+    //   });
+    // });
+    // return {
+    //   animations: [],
+    //   completed: false,
+    //   pause: () => console.log('fake pause'),
+    // };
     return anime({
       ...this.animationOptions.move,
       targets,

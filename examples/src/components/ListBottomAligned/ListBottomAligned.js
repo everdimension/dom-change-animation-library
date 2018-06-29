@@ -30,6 +30,7 @@ class ListBottomAligned extends React.Component {
     this.animateList = new AnimateList(this.listNode, {
       animationOptions: {
         enter: { duration: 4000 },
+        move: { duration: 4000 },
       },
     });
     Object.assign(window, { animateListBottomAligned: this.animateList });
@@ -96,6 +97,20 @@ class ListBottomAligned extends React.Component {
     this.animateList.animations.playAll();
   }
 
+  handleBlock() {
+    function sleep(seconds, cb) {
+      var e = new Date().getTime() + seconds * 1000;
+      while (new Date().getTime() <= e) {}
+      cb();
+    }
+    function repeatSleep() {
+      sleep(0.5, () => {
+        setTimeout(repeatSleep, 1000);
+      });
+    }
+    repeatSleep();
+  }
+
   render() {
     const { order, values } = this.state;
     return (
@@ -114,6 +129,7 @@ class ListBottomAligned extends React.Component {
           <button onClick={this.handleAddLast}>add to end</button>
           <button onClick={this.handlePause}>pause</button>
           <button onClick={this.handlePlay}>playAll</button>
+          <button onClick={this.handleBlock}>block main thread</button>
         </div>
         <div
           ref={n => {
