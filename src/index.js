@@ -6,32 +6,10 @@ const emptyTransforms = {
   translateY: 0,
 };
 
-function getTransformsForNode(node, animations = []) {
-  /**
-   * Here we calculate how far the node is from where it should be
-   * due to an unfinished animation
-   */
-  const targetAnimations = animations.filter(
-    a => a.type === 'transform' && a.animatable.target === node,
-  );
-  if (!targetAnimations.length) {
-    return emptyTransforms;
-  }
-  return targetAnimations.reduce((acc, animation) => {
-    acc[animation.property] = parseFloat(animation.currentValue);
-    return acc;
-  }, {});
-}
-
-function getChildrenPositions(target, { animations, withoutTransforms }) {
+function getChildrenPositions(target) {
   const positions = [];
   for (let node of target.children) {
-    // const savedTransform = node.style.transform;
-    // if (withoutTransforms) {
-    //   node.style.transform = '';
-    // }
     const clientRect = node.getBoundingClientRect();
-    // const transforms = getTransformsForNode(node, animations);
     const transforms = emptyTransforms;
     positions.push({
       rect: {
@@ -46,17 +24,12 @@ function getChildrenPositions(target, { animations, withoutTransforms }) {
       },
       node,
     });
-    // return transform
-    // console.log({ savedTransform });
-    // if (savedTransform && withoutTransforms) {
-    //   node.style.transform = savedTransform;
-    // }
   }
   return positions;
 }
 
-function collectPositionsData(target, options) {
-  const children = getChildrenPositions(target, options);
+function collectPositionsData(target) {
+  const children = getChildrenPositions(target);
   const containerRect = target.getBoundingClientRect();
   const container = {
     x: containerRect.x,
@@ -96,24 +69,8 @@ function getContainerRect(node) {
 function resetTransforms(target) {
   for (let child of target.children) {
     child.style.transform = '';
+    child.style.transition = 'none';
   }
-}
-
-function updatePositionsWithAnimation(positions, animations) {
-  return positions.map(position => {
-    // it is okay to mutate `position` here
-    const transforms = getTransformsForNode(position.node, animations);
-    if (!transforms.translateY) {
-      console.log(position, transforms.translateY);
-    }
-    position.rect.x += transforms.translateX || 0;
-    position.rect.left += transforms.translateX || 0;
-    position.rect.right += transforms.translateX || 0;
-    position.rect.y += transforms.translateY || 0;
-    position.rect.top += transforms.translateY || 0;
-    position.rect.bottom += transforms.translateY || 0;
-    return position;
-  });
 }
 
 const defaultAnimationOptions = {
@@ -125,19 +82,19 @@ const defaultLeaveAnimationOptions = Object.assign(
   defaultAnimationOptions,
 );
 
+const defaultOptions = {
+  animations: {
+    enter: defaultAnimationOptions,
+    move: defaultAnimationOptions,
+    leave: defaultLeaveAnimationOptions,
+  },
+  rootNode: document.body,
+};
+
 export class AnimateList {
-  constructor(
-    target,
-    { animationOptions } = {
-      animationOptions: {
-        enter: defaultAnimationOptions,
-        move: defaultAnimationOptions,
-        leave: defaultLeaveAnimationOptions,
-      },
-    },
-  ) {
+  constructor(target, options = {}) {
     this.target = target;
-    this.positionsData = collectPositionsData(target, { withoutTransforms: false });
+    this.positionsData = collectPositionsData(target);
     this.currentContainerPosition = getContainerRect(target);
     this.animation = null;
     this.animations = new AnimationsStore();
@@ -145,18 +102,26 @@ export class AnimateList {
     this.observer.observe(target, { childList: true });
 
     /** animejs params */
-    this.animationOptions = Object.assign({}, defaultAnimationOptions, {
-      move: Object.assign({}, defaultAnimationOptions, animationOptions.move),
-      enter: Object.assign({}, defaultAnimationOptions, animationOptions.enter),
-      leave: Object.assign(
-        defaultLeaveAnimationOptions,
-        animationOptions.leave,
-      ),
+    this.options = Object.assign({}, defaultOptions, options);
+    const { move, enter, leave } = this.options.animations;
+    this.options.animations = Object.assign({}, defaultAnimationOptions, {
+      move:
+        typeof move === 'function'
+          ? move
+          : Object.assign({}, defaultAnimationOptions, move),
+      enter:
+        typeof enter === 'function'
+          ? enter
+          : Object.assign({}, defaultAnimationOptions, enter),
+      leave:
+        typeof leave === 'function'
+          ? leave
+          : Object.assign(defaultLeaveAnimationOptions, leave),
     });
   }
 
   takeSnapshotBeforeUpdate() {
-    this.positionsData = collectPositionsData(this.target, { withoutTransforms: false });
+    this.positionsData = collectPositionsData(this.target);
     resetTransforms(this.target);
     this.didTakeSnapshotBeforeUpdate = true;
   }
@@ -172,10 +137,7 @@ export class AnimateList {
       this.animations.pause();
     }
 
-    const newPositionsData = collectPositionsData(record.target, {
-      animations: activeAnimations,
-      withoutTransforms: true,
-    });
+    const newPositionsData = collectPositionsData(record.target);
 
     const childListMutations = mutations.filter(m => m.type === 'childList');
 
@@ -209,12 +171,12 @@ export class AnimateList {
 
     /** To calculate containerDiff, we need to add removedNodes.back */
 
-    if (shouldAccountForAnimation && !this.didTakeSnapshotBeforeUpdate) {
-      this.positionsData.children = updatePositionsWithAnimation(
-        this.positionsData.children,
-        activeAnimations,
+    if (!this.didTakeSnapshotBeforeUpdate) {
+      console.warn(
+        '`didTakeSnapshotBeforeUpdate` is false. Something may be wrong',
       );
     }
+
     const inversedOffsets = getInversedOffsets(
       this.positionsData.children,
       positionsToMove,
@@ -227,14 +189,13 @@ export class AnimateList {
       newPositionsData,
     );
     this.animations.addAnimation('moveAnimations', moveAnimation);
-    console.log(addedNodes.length);
     if (addedNodes.length) {
       const enterAnimation = this.animateEntrance(addedNodes);
       this.animations.addAnimation('enterAnimations', enterAnimation);
     }
 
     if (removedNodes.length) {
-      const leaveAnimation = this.drawRemovedNodes(removedNodes);
+      const leaveAnimation = this.animateLeave(removedNodes);
       this.animations.addAnimation('leaveAnimations', leaveAnimation);
     }
 
@@ -243,43 +204,28 @@ export class AnimateList {
   }
 
   animateMove(inversedOffsets, positionData, newPositionsData) {
-    const containerDiff = {
-      x: 0, // positionData.container.left - newPositionsData.container.left,
-      y: 0, // positionData.container.top - newPositionsData.container.top,
-    };
     const nonZeroOffsets = inversedOffsets.filter(
       offset =>
-        offset.styles.translateX - containerDiff.x !== 0 ||
-        offset.styles.translateY - containerDiff.y !== 0,
+        offset.styles.translateX !== 0 || offset.styles.translateY !== 0,
     );
 
     /** move elements back to where they were without animation */
     nonZeroOffsets.forEach(offset => {
       const { translateX, translateY } = offset.styles;
-      const x = translateX - containerDiff.x;
-      const y = translateY - containerDiff.y;
-      offset.node.style.transition = 'none';
+      const x = translateX;
+      const y = translateY;
       offset.node.style.transform = `translateX(${x}px) translateY(${y}px)`;
     });
 
     const targets = nonZeroOffsets.map(p => p.node);
+    const { move } = this.options.animations;
+    if (typeof move === 'function') {
+      return move({ targets, to: { translateX: 0, translateY: 0 } });
+    }
+
     /** animate elements to where they should be */
-    // requestAnimationFrame(() => {
-    //   targets.forEach(node => {
-    //     node.style.transition = `opacity ${
-    //       this.animationOptions.move.duration / 1000
-    //     }s, transform ${this.animationOptions.move.duration / 1000}s`;
-    //     node.style.transform = `translateX(0) translateY(0)`;
-    //     node.style.opacity = 1;
-    //   });
-    // });
-    // return {
-    //   animations: [],
-    //   completed: false,
-    //   pause: () => console.log('fake pause'),
-    // };
     return anime({
-      ...this.animationOptions.move,
+      ...move,
       targets,
       translateX: 0,
       translateY: 0,
@@ -288,27 +234,25 @@ export class AnimateList {
   }
 
   animateEntrance(targets) {
-    const targetStyleProps = {
-      opacity: 1,
-      translateX: 0,
-    };
-    if (targets.length) {
-      const targetOpacity = getComputedStyle(targets[0]).opacity;
-      targetStyleProps.opacity = targetOpacity || 1;
+    const from = { translateX: 200, opacity: 0 };
+    const to = { translateX: 0, opacity: 1 };
+    const { enter } = this.options.animations;
+    if (typeof enter === 'function') {
+      return enter({ targets, from, to });
     }
     targets.forEach(t => {
-      t.style.transform = 'translateX(200px)';
-      t.style.opacity = 0;
+      t.style.transform = `translateX(${from.translateX}px)`;
+      t.style.opacity = from.opacity;
     });
     return anime({
-      ...this.animationOptions.enter,
+      ...enter,
       targets,
-      translateX: targetStyleProps.translateX,
-      opacity: targetStyleProps.opacity,
+      translateX: to.translateX,
+      opacity: to.opacity,
     });
   }
 
-  drawRemovedNodes(nodes) {
+  animateLeave(nodes) {
     const clones = nodes.map(node => {
       const position = this.positionsData.children.find(p => p.node === node);
       if (!position) {
@@ -320,16 +264,17 @@ export class AnimateList {
       div.style.width = `${width}px`;
       div.style.top = `${top}px`;
       div.style.left = `${left}px`;
+      div.style.zIndex = 10;
       const clone = node.cloneNode(true);
       clone.style.transform = '';
       div.appendChild(clone);
       return div;
     });
     clones.forEach(clone => {
-      document.body.appendChild(clone);
+      this.options.rootNode.appendChild(clone);
     });
     const animation = anime({
-      ...this.animationOptions.leave,
+      ...this.options.animations.leave,
       targets: clones,
       opacity: 0,
       complete: () => {
