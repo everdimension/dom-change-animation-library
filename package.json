@@ -1,5 +1,5 @@
 {
-  "name": "dom-change-animation-library",
+  "name": "list-transitions",
   "version": "0.0.1",
   "description": "Animate removal and addition of DOM elements",
   "main": "lib/index.js",
