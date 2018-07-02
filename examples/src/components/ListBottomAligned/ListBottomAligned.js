@@ -1,5 +1,6 @@
 import React from 'react';
 import { AnimateList } from '../../../../src';
+import { animate } from '../../animate';
 
 const propTypes = {};
 
@@ -7,10 +8,10 @@ class ListBottomAligned extends React.Component {
   constructor() {
     super();
     const values = {
-      ringo: { name: 'ringo' },
-      john: { name: 'john' },
-      paul: { name: 'paul' },
-      george: { name: 'george' },
+      ringo: { name: 'ringo', desc: 'online' },
+      john: { name: 'john', desc: 'offline' },
+      paul: { name: 'paul', desc: 'online' },
+      george: { name: 'george', desc: 'offline' },
     };
     this.state = {
       values,
@@ -28,9 +29,37 @@ class ListBottomAligned extends React.Component {
 
   componentDidMount() {
     this.animateList = new AnimateList(this.listNode, {
-      animationOptions: {
-        enter: { duration: 4000 },
-        move: { duration: 4000 },
+      rootNode: this.rootNode,
+      animations: {
+        // enter: { duration: 4000 },
+        enter({ targets }) {
+          targets.forEach(node => {
+            node.style.transform = 'translateX(200px)';
+            node.style.opacity = 0;
+          });
+          const duration = 500;
+          return animate({
+            targets,
+            to: { translateX: 0, opacity: 1 },
+            duration,
+            transition: [
+              `transform ${duration}ms cubic-bezier(0.25, 0.12, 0.33, 1.22)`,
+              `opacity ${duration}ms ease-in-out`,
+            ].join(', '),
+          });
+        },
+        move: ({ targets, to }) => {
+          const duration = 500;
+          return animate({
+            targets,
+            to,
+            duration,
+            transition: [
+              `transform ${duration}ms cubic-bezier(0.25, 0.12, 0.33, 1.22)`,
+              `opacity ${duration}ms ease-in-out`,
+            ].join(', '),
+          });
+        },
       },
     });
     Object.assign(window, { animateListBottomAligned: this.animateList });
@@ -99,8 +128,8 @@ class ListBottomAligned extends React.Component {
 
   handleBlock() {
     function sleep(seconds, cb) {
-      var e = new Date().getTime() + seconds * 1000;
-      while (new Date().getTime() <= e) {}
+      var e = Date.now() + seconds * 1000;
+      while (Date.now() <= e) {}
       cb();
     }
     function repeatSleep() {
@@ -111,10 +140,23 @@ class ListBottomAligned extends React.Component {
     repeatSleep();
   }
 
+  handleUpdate(key) {
+    const value = this.state.values[key];
+    value.desc = value.desc === 'online' ? 'offline' : 'online';
+    this.setState({
+      values: {
+        ...this.state.values,
+        [key]: value,
+      },
+      order: [key, ...this.state.order.filter(k => k !== key)],
+    });
+  }
+
   render() {
     const { order, values } = this.state;
     return (
       <div
+        ref={n => (this.rootNode = n)}
         style={{
           height: 600,
           position: 'relative',
@@ -147,8 +189,9 @@ class ListBottomAligned extends React.Component {
                 marginBottom: '0.5em',
                 opacity: 0.8,
               }}
+              onClick={() => this.handleUpdate(key)}
             >
-              {values[key].name}
+              {values[key].name} - {values[key].desc}
             </div>
           ))}
         </div>
