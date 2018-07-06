@@ -122,7 +122,6 @@ export class AnimateList {
 
   takeSnapshotBeforeUpdate() {
     this.positionsData = collectPositionsData(this.target);
-    resetTransforms(this.target);
     this.didTakeSnapshotBeforeUpdate = true;
   }
 
@@ -132,12 +131,6 @@ export class AnimateList {
     const activeAnimations = shouldAccountForAnimation
       ? this.animations.getActiveAnimations()
       : undefined;
-
-    if (shouldAccountForAnimation) {
-      this.animations.pause();
-    }
-
-    const newPositionsData = collectPositionsData(record.target);
 
     const childListMutations = mutations.filter(m => m.type === 'childList');
 
@@ -149,6 +142,14 @@ export class AnimateList {
       },
       { addedNodesRecord: [], removedNodesRecord: [] },
     );
+
+    resetTransforms(this.target);
+
+    if (shouldAccountForAnimation) {
+      this.animations.pause();
+    }
+
+    const newPositionsData = collectPositionsData(record.target);
 
     const removedNodes = removedNodesRecord.filter(
       n => !addedNodesRecord.includes(n),
