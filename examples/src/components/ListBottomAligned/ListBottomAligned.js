@@ -8,10 +8,10 @@ class ListBottomAligned extends React.Component {
   constructor() {
     super();
     const values = {
-      ringo: { name: 'ringo', desc: 'online' },
-      john: { name: 'john', desc: 'offline' },
-      paul: { name: 'paul', desc: 'online' },
-      george: { name: 'george', desc: 'offline' },
+      ringo: { name: 'ringo', desc: 'online', state: 1 },
+      john: { name: 'john', desc: 'offline', state: 1 },
+      paul: { name: 'paul', desc: 'online', state: 1 },
+      george: { name: 'george', desc: 'offline', state: 1 },
     };
     this.state = {
       values,
@@ -79,6 +79,16 @@ class ListBottomAligned extends React.Component {
       this.setState({
         order: [newItem, ...order],
       });
+      setTimeout(() => {
+        const value = this.state.values[newItem];
+        value.state += 1;
+        this.setState({
+          values: {
+            ...this.state.values,
+            [newItem.name]: value,
+          },
+        });
+      }, 250);
     }
   }
 
@@ -191,7 +201,7 @@ class ListBottomAligned extends React.Component {
               }}
               onClick={() => this.handleUpdate(key)}
             >
-              {values[key].name} - {values[key].desc}
+              {values[key].name} - {values[key].desc} - {values[key].state}
             </div>
           ))}
         </div>
