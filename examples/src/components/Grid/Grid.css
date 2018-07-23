@@ -1,0 +1,11 @@
+.Grid {
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  grid-gap: 5px;
+}
+
+.Square {
+  width: 100%;
+  padding-bottom: 100%;
+  background: #ff2d55;
+}

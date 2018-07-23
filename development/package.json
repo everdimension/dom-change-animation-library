@@ -1,16 +1,10 @@
 {
-  "name": "examples",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "name": "list-transitions-playground",
   "scripts": {
     "start": "npm run styleguide",
     "styleguide": "styleguidist server",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
   "dependencies": {
     "animejs": "^2.2.0",
     "react": "^16.4.1",

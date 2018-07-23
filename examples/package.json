@@ -1,16 +1,13 @@
 {
   "name": "examples",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
   "scripts": {
     "start": "npm run styleguide",
     "styleguide": "styleguidist server",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "author": "everdimension@gmail.com",
+  "license": "MIT",
   "dependencies": {
     "animejs": "^2.2.0",
     "react": "^16.4.1",
@@ -21,7 +18,9 @@
     "babel-loader": "^7.1.4",
     "babel-plugin-transform-object-rest-spread": "^6.26.0",
     "babel-preset-react": "^6.24.1",
+    "css-loader": "^1.0.0",
     "react-styleguidist": "^7.0.18",
+    "style-loader": "^0.21.0",
     "webpack": "^4.12.0"
   }
 }

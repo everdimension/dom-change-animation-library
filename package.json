@@ -5,9 +5,9 @@
   "main": "lib/index.js",
   "module": "lib/index.es.js",
   "scripts": {
-    "start": "cd examples && npm start",
+    "start": "cd development && npm start",
     "build": "rollup -c",
-    "prepare": "npm run build",
+    "prepack": "npm run build",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "everdimension@gmail.com",
