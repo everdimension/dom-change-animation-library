@@ -1,31 +1,36 @@
-import anime from 'animejs';
-import { AnimationsStore } from './AnimationsStore';
+import anime from "animejs";
+import { AnimationsStore } from "./AnimationsStore";
 
 const emptyTransforms = {
   translateX: 0,
-  translateY: 0,
+  translateY: 0
 };
 
 function getChildrenPositions(target) {
-  const positions = [];
-  for (let node of target.children) {
-    const clientRect = node.getBoundingClientRect();
-    const transforms = emptyTransforms;
-    positions.push({
-      rect: {
-        x: clientRect.x - (transforms.translateX || 0),
-        y: clientRect.y - (transforms.translateY || 0),
-        top: clientRect.top - (transforms.translateY || 0),
-        bottom: clientRect.bottom - (transforms.translateY || 0),
-        left: clientRect.left - (transforms.translateX || 0),
-        right: clientRect.right - (transforms.translateX || 0),
-        width: clientRect.width,
-        height: clientRect.height,
-      },
-      node,
-    });
-  }
-  return positions;
+  // const positions = [];
+  return Array.prototype.reduce.call(
+    target.children,
+    (positions, node) => {
+      const clientRect = node.getBoundingClientRect();
+      const transforms = emptyTransforms;
+      positions.push({
+        rect: {
+          x: clientRect.x - (transforms.translateX || 0),
+          y: clientRect.y - (transforms.translateY || 0),
+          top: clientRect.top - (transforms.translateY || 0),
+          bottom: clientRect.bottom - (transforms.translateY || 0),
+          left: clientRect.left - (transforms.translateX || 0),
+          right: clientRect.right - (transforms.translateX || 0),
+          width: clientRect.width,
+          height: clientRect.height
+        },
+        node
+      });
+      return positions;
+    },
+    []
+  );
+  // return positions;
 }
 
 function collectPositionsData(target) {
@@ -35,11 +40,11 @@ function collectPositionsData(target) {
     x: containerRect.x,
     y: containerRect.y,
     left: containerRect.left,
-    top: containerRect.top,
+    top: containerRect.top
   };
   return {
     container,
-    children,
+    children
   };
 }
 
@@ -47,7 +52,7 @@ function getInversedOffsets(prevPositions, newPositionsData) {
   return newPositionsData.map(position => {
     const prevPos = prevPositions.find(p => p.node === position.node);
     if (!prevPos) {
-      throw new Error('No previous position found for element');
+      throw new Error("No previous position found for element");
     }
     const diffX = prevPos.rect.left - position.rect.left;
     const diffY = prevPos.rect.top - position.rect.top;
@@ -55,8 +60,8 @@ function getInversedOffsets(prevPositions, newPositionsData) {
       node: position.node,
       styles: {
         translateX: diffX,
-        translateY: diffY,
-      },
+        translateY: diffY
+      }
     };
   });
 }
@@ -68,27 +73,27 @@ function getContainerRect(node) {
 
 function resetTransforms(target) {
   for (let child of target.children) {
-    child.style.transform = '';
-    child.style.transition = 'none';
+    child.style.transform = "";
+    child.style.transition = "none";
   }
 }
 
 const defaultAnimationOptions = {
   autoplay: true,
-  duration: 1000,
+  duration: 1000
 };
 const defaultLeaveAnimationOptions = Object.assign(
   { elasticity: 0 },
-  defaultAnimationOptions,
+  defaultAnimationOptions
 );
 
 const defaultOptions = {
   animations: {
     enter: defaultAnimationOptions,
     move: defaultAnimationOptions,
-    leave: defaultLeaveAnimationOptions,
+    leave: defaultLeaveAnimationOptions
   },
-  rootNode: document.body,
+  rootNode: document.body
 };
 
 export class AnimateList {
@@ -106,17 +111,17 @@ export class AnimateList {
     const { move, enter, leave } = this.options.animations;
     this.options.animations = Object.assign({}, defaultAnimationOptions, {
       move:
-        typeof move === 'function'
+        typeof move === "function"
           ? move
           : Object.assign({}, defaultAnimationOptions, move),
       enter:
-        typeof enter === 'function'
+        typeof enter === "function"
           ? enter
           : Object.assign({}, defaultAnimationOptions, enter),
       leave:
-        typeof leave === 'function'
+        typeof leave === "function"
           ? leave
-          : Object.assign(defaultLeaveAnimationOptions, leave),
+          : Object.assign(defaultLeaveAnimationOptions, leave)
     });
   }
 
@@ -132,7 +137,7 @@ export class AnimateList {
       ? this.animations.getActiveAnimations()
       : undefined;
 
-    const childListMutations = mutations.filter(m => m.type === 'childList');
+    const childListMutations = mutations.filter(m => m.type === "childList");
 
     const { addedNodesRecord, removedNodesRecord } = childListMutations.reduce(
       (acc, m) => {
@@ -140,7 +145,7 @@ export class AnimateList {
         acc.removedNodesRecord.push(...m.removedNodes);
         return acc;
       },
-      { addedNodesRecord: [], removedNodesRecord: [] },
+      { addedNodesRecord: [], removedNodesRecord: [] }
     );
 
     resetTransforms(this.target);
@@ -152,52 +157,52 @@ export class AnimateList {
     const newPositionsData = collectPositionsData(record.target);
 
     const removedNodes = removedNodesRecord.filter(
-      n => !addedNodesRecord.includes(n),
+      n => !addedNodesRecord.includes(n)
     );
 
     const addedNodes = addedNodesRecord.filter(
-      n => !removedNodesRecord.includes(n),
+      n => !removedNodesRecord.includes(n)
     );
 
     const positionsToMove = newPositionsData.children.filter(
-      p => !addedNodes.includes(p.node),
+      p => !addedNodes.includes(p.node)
     );
 
     removedNodes.forEach(node => {
-      node.style.transition = 'none';
+      node.style.transition = "none";
     });
     positionsToMove.forEach(p => {
-      p.node.style.transition = 'none';
+      p.node.style.transition = "none";
     });
 
     /** To calculate containerDiff, we need to add removedNodes.back */
 
     if (!this.didTakeSnapshotBeforeUpdate) {
       console.warn(
-        '`didTakeSnapshotBeforeUpdate` is false. Something may be wrong',
+        "`didTakeSnapshotBeforeUpdate` is false. Something may be wrong"
       );
     }
 
     const inversedOffsets = getInversedOffsets(
       this.positionsData.children,
-      positionsToMove,
+      positionsToMove
     );
 
     this.animations.removeAllAnimations();
     const moveAnimation = this.animateMove(
       inversedOffsets,
       this.positionsData,
-      newPositionsData,
+      newPositionsData
     );
-    this.animations.addAnimation('moveAnimations', moveAnimation);
+    this.animations.addAnimation("moveAnimations", moveAnimation);
     if (addedNodes.length) {
       const enterAnimation = this.animateEntrance(addedNodes);
-      this.animations.addAnimation('enterAnimations', enterAnimation);
+      this.animations.addAnimation("enterAnimations", enterAnimation);
     }
 
     if (removedNodes.length) {
       const leaveAnimation = this.animateLeave(removedNodes);
-      this.animations.addAnimation('leaveAnimations', leaveAnimation);
+      this.animations.addAnimation("leaveAnimations", leaveAnimation);
     }
 
     this.positionsData = newPositionsData;
@@ -206,8 +211,7 @@ export class AnimateList {
 
   animateMove(inversedOffsets, positionData, newPositionsData) {
     const nonZeroOffsets = inversedOffsets.filter(
-      offset =>
-        offset.styles.translateX !== 0 || offset.styles.translateY !== 0,
+      offset => offset.styles.translateX !== 0 || offset.styles.translateY !== 0
     );
 
     /** move elements back to where they were without animation */
@@ -220,7 +224,7 @@ export class AnimateList {
 
     const targets = nonZeroOffsets.map(p => p.node);
     const { move } = this.options.animations;
-    if (typeof move === 'function') {
+    if (typeof move === "function") {
       return move({ targets, to: { translateX: 0, translateY: 0 } });
     }
 
@@ -230,7 +234,7 @@ export class AnimateList {
       targets,
       translateX: 0,
       translateY: 0,
-      opacity: 1,
+      opacity: 1
     });
   }
 
@@ -238,7 +242,7 @@ export class AnimateList {
     const from = { translateX: 200, opacity: 0 };
     const to = { translateX: 0, opacity: 1 };
     const { enter } = this.options.animations;
-    if (typeof enter === 'function') {
+    if (typeof enter === "function") {
       return enter({ targets, from, to });
     }
     targets.forEach(t => {
@@ -249,7 +253,7 @@ export class AnimateList {
       ...enter,
       targets,
       translateX: to.translateX,
-      opacity: to.opacity,
+      opacity: to.opacity
     });
   }
 
@@ -260,14 +264,14 @@ export class AnimateList {
         return;
       }
       const { top, left, width } = position.rect;
-      const div = document.createElement('div');
-      div.style.position = 'fixed';
+      const div = document.createElement("div");
+      div.style.position = "fixed";
       div.style.width = `${width}px`;
       div.style.top = `${top}px`;
       div.style.left = `${left}px`;
       div.style.zIndex = 10;
       const clone = node.cloneNode(true);
-      clone.style.transform = '';
+      clone.style.transform = "";
       div.appendChild(clone);
       return div;
     });
@@ -281,7 +285,7 @@ export class AnimateList {
       complete: () => {
         clones.forEach(n => n.remove());
         clones.length = null;
-      },
+      }
     });
     return animation;
   }
